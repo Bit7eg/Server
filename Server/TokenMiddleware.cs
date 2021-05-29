@@ -1,25 +1,32 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using System;
+using System.Threading.Tasks;
 using System.Collections;
 using System.Resources.NetStandard;
+using System.Resources.Extensions;
 using System.IO;
 
-namespace First_task
+namespace Server
 {
-    class Program
+    public class TokenMiddleware
     {
-        private static Catalog main = new Catalog();
-        private static Catalog current = main;
+        public static Catalog main = new Catalog();
+        public static Catalog current = main;
         private static string output = "";
         private static string path = "";
         private static string command = "";
         private static string part = "";
-        private static bool isError = false;
+        private static string[] data = new string[3];
+        private readonly RequestDelegate _next;
+        public TokenMiddleware(RequestDelegate next)
+        {
+            this._next = next;
+        }
         static void NextCatalog(string name)
         {
             current = current.FindCatalog(name); //Найти каталог по имени
             if (current == null) PreviosCatalog();
         }
-
         static void PreviosCatalog()
         {
             current = main;
@@ -37,6 +44,10 @@ namespace First_task
         /// <param name="str">Исходная строка</param>
         static void GetParametrFromString(ref string parametr, ref string str)
         {
+            if (str is null)
+            {
+                str = "";
+            }
             while ((str != "") && (str[0] != ' '))
             {
                 parametr += str[0];
@@ -151,118 +162,80 @@ namespace First_task
                 "exit - выход\n" +
                 "При вводе названий, избегайте пробелов, например, используйте нижнее подчеркивание '_'\n\n";
         }
-        static void LoadCatalogs()
-        {
-            try
-            {
-                using (ResXResourceReader resxReader = new ResXResourceReader(@".\data.resx"))
-                {
-                    IDictionaryEnumerator dictionary = resxReader.GetEnumerator();
-                    while (dictionary.MoveNext())
-                    {
-                        if (((string)dictionary.Key) == "main")
-                        {
-                            main = (Catalog)dictionary.Value;
-                            current = main;
-                        }
-                    }
-                }
-            }
-            catch (FileNotFoundException)
-            {
-                using (ResXResourceWriter resxWriter = new ResXResourceWriter(@".\data.resx"))
-                {
-                    resxWriter.AddResource("main", main);
-                }
-            }
-        }
         static void SaveCatalogs()
         {
-            using (ResXResourceWriter resxWriter = new ResXResourceWriter(@".\data.resx"))
+            using (ResXResourceWriter writer = new ResXResourceWriter(@".\data.resx"))
             {
-                resxWriter.AddResource("main", main);
+                writer.AddResource("main", main);
             }
         }
-        static void Execute(string str)
+        public async Task InvokeAsync(HttpContext context)
         {
-            LoadCatalogs();
-            string[] data = new string[3]; //массив данных: название - кол-во - стоимость
-            while (part != "exit")
+            command = context.Request.Query["command"];
+            output = "";
+            part = ""; //Часть от введенной строки, отвечающая за команду
+            GetParametrFromString(ref part, ref command); //Считывание параметра до первого пробела
+            if (command != "") command = command.Remove(0, 1); //удалить пробел
+            data[0] = data[1] = data[2] = ""; //заполнение данных пробелами
+            if (part == "acat")
             {
-                if (part != "sall")
+                if (ReadParameters(data, 1)) current.AddCatalog((new Catalog(data[0])));
+            }
+            else if (part == "ag")
+            {
+                if (ReadParameters(data, 3)) current.AddGoods(new Goods(data));
+            }
+            else if (part == "chct")
+            {
+                if (ReadParameters(data, 2)) current.ChangeGoods(data[0], int.Parse(data[1]));
+            }
+            else if (part == "dcat")
+            {
+                if (ReadParameters(data, 1)) current.DeleteCatalog(data[0]);
+            }
+            else if (part == "dg")
+            {
+                if (ReadParameters(data, 1)) current.DeleteGoods(data[0]);
+            }
+            else if (part == "open")
+            {
+                if (ReadParameters(data, 1))
                 {
-                    if (part != "help")
-                    {
-                        SaveCatalogs();
-                        output = "";
-                    }
-                }
-                output = output.Insert(0, current.PrintCatalogContent()); //вывести содержимое каталога
-                output += ">"; //Приглашение
-                Console.Clear();
-                Console.Write(output);
-                output = "";
-                command = Console.ReadLine();
-                part = ""; //Часть от введенной строки, отвечающая за команду
-                GetParametrFromString(ref part, ref command); //Считывание параметра до первого пробела
-                if (command != "") command = command.Remove(0, 1); //удалить пробел
-
-                data[0] = data[1] = data[2] = ""; //заполнение данных пробелами
-                if (part == "acat") //Добавить каталог
-                    if (ReadParameters(data, 1)) current.AddCatalog((new Catalog(data[0])));
-                    else isError = true;
-                else if (part == "ag") //Добавить товар
-                    if (ReadParameters(data, 3)) current.AddGoods(new Goods(data));
-                    else isError = true;
-                else if (part == "chct") //Изменить кол-во
-                    if (ReadParameters(data, 2)) current.ChangeGoods(data[0], int.Parse(data[1]));
-                    else isError = true;
-                else if (part == "dcat") //Удалить каталог
-                    if (ReadParameters(data, 1)) current.DeleteCatalog(data[0]);
-                    else isError = true;
-                else if (part == "dg") //Удалить товар
-                    if (ReadParameters(data, 1)) current.DeleteGoods(data[0]);
-                    else isError = true;
-                else if (part == "open") //Открыть каталог
-                    if (ReadParameters(data, 1))
-                    {
-                        NextCatalog(data[0]);
-                        path += '\x1' + data[0];
-                    }
-                    else isError = true;
-                else if (part == "back")
-                    if (path.Length == 0)
-                    {
-                        output += "This is root\n";
-                        isError = true;
-                    }
-                    else
-                    {
-                        path = path.Remove(path.LastIndexOf('\x1'));
-                        PreviosCatalog();
-                    }
-                else if (part == "sall")
-                {
-                    output += "\n" + current.PrintAllCatalogsContent();
-                }
-                else if (part == "help")
-                {
-                    ShowHelp();
-                }
-                else if (part != "exit")
-                {
-                    output += "Unknown command. You can see help.\n"; //Не распознана команда
-                    isError = true;
-                }
-
-                if (isError)
-                {
-                    output += "\nPress any key to continue\n";
-                    Console.ReadKey();
-                    isError = false;
+                    NextCatalog(data[0]);
+                    path += '\x1' + data[0];
                 }
             }
-            SaveCatalogs();
+            else if (part == "back")
+            {
+                if (path.Length == 0)
+                {
+                    output += "This is root\n";
+                }
+                else
+                {
+                    path = path.Remove(path.LastIndexOf('\x1'));
+                    PreviosCatalog();
+                }
+            }
+            else if (part == "sall")
+            {
+                output += "\n" + current.PrintAllCatalogsContent();
+            }
+            else if (part == "help")
+            {
+                ShowHelp();
+            }
+            else if (part != "")
+            {
+                output += "Unknown command. You can see help.\n"; //Не распознана команда
+            }
+            if ((part == "acat") || (part == "ag") || (part == "chct") || (part == "dcat") || (part == "dg"))
+            {
+                SaveCatalogs();
+            }
+            output = output.Insert(0, current.PrintCatalogContent()); //вывести содержимое каталога
+            output += ">"; //Приглашение
+            await context.Response.WriteAsync(output);
         }
     }
 }

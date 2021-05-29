@@ -1,9 +1,9 @@
 ﻿using System;
 
-namespace First_task
+namespace Server
 {
     [Serializable]
-    class Goods : IComparable<Goods>
+    public class Goods : IComparable<Goods>
     {
         public string Name { get; private set; } //название
         private int count; //количество

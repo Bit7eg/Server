@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace First_task
+namespace Server
 {
     [Serializable]
-    class Catalog : IComparable<Catalog>
+    public class Catalog : IComparable<Catalog>
     {
         public string Name { get; private set; } //название
         private SortedSet<Catalog> internalCatalogs; //Отсортированный список каталогов
