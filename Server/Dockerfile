@@ -2,14 +2,14 @@
 
 FROM mcr.microsoft.com/dotnet/aspnet:3.1 AS base
 WORKDIR /app
-EXPOSE 80 443
+EXPOSE 80
 
 FROM mcr.microsoft.com/dotnet/sdk:3.1 AS build
 WORKDIR /src
-COPY ["Server/Server.csproj", "Server/"]
+COPY ["Server.csproj", "Server/"]
 RUN dotnet restore "Server/Server.csproj"
-COPY . .
 WORKDIR "/src/Server"
+COPY . .
 RUN dotnet build "Server.csproj" -c Release -o /app/build
 
 FROM build AS publish

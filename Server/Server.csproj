@@ -4,8 +4,8 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <UserSecretsId>343e7d2a-7fc1-488b-a774-12892e542224</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-    <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>KeyFile.pfx</AssemblyOriginatorKeyFile>
+    <SignAssembly>false</SignAssembly>
+    <StartupObject>Server.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
